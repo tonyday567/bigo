@@ -1,0 +1,8 @@
+/.stack-work/
+/dist-newstyle/
+stack.yaml.lock
+**/.DS_Store
+cabal.project.local
+/.ghc.environment.x86_64-darwin-8.10.4
+/.hie/
+/cabal.project.local*

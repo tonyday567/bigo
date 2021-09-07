@@ -1,0 +1,57 @@
+cabal-version: 2.4
+name:          bigo
+version:       0.0.1
+synopsis: Performance Testing
+description: A library for performance testing.
+author: Tony Day
+maintainer: tonyday567@gmail.com
+copyright: Tony Day (c) AfterTimes
+license: BSD-3-Clause
+homepage: https://github.com/tonyday567/bigo#readme
+bug-reports: https://github.com/tonyday567/bigo/issues
+build-type: Simple
+source-repository head
+  type: git
+  location: https://github.com/tonyday567/bigo
+
+library
+  hs-source-dirs:
+    src
+  default-extensions:
+  ghc-options:
+    -Wall
+    -Wcompat
+    -Wincomplete-record-updates
+    -Wincomplete-uni-patterns
+    -Wredundant-constraints
+    -fwrite-ide-info
+    -hiedir=.hie
+  build-depends:
+    base >=4.7 && <5,
+    ghc-lib-parser >= 9.0.1.20210324 && < 9.2,
+    perf ^>= 0.8,
+    numhask ^>= 0.8.1,
+    vector >= 0.12 && < 0.13,
+  exposed-modules:
+    BigO
+  other-modules:
+  default-language: Haskell2010
+
+executable bigo
+  main-is: app.hs
+  hs-source-dirs: app
+  build-depends:
+    base >= 4.7 && < 5,
+    ghc == 8.10.4,
+    ghc-lib-parser >= 9.0.1.20210324 && < 9.2,
+    bigo,
+  default-language: Haskell2010
+  default-extensions:
+  ghc-options:
+    -funbox-strict-fields
+    -fforce-recomp
+    -threaded
+    -rtsopts
+    -with-rtsopts=-N
+    -fwrite-ide-info
+    -hiedir=.hie
