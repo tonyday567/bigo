@@ -1,6 +1,5 @@
 packages:
   bigo.cabal
-  ../perf/perf.cabal
 
 -- for doctests
 write-ghc-environment-files: always

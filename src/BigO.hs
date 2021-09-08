@@ -5,8 +5,8 @@
 {-# LANGUAGE RebindableSyntax #-}
 {-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
-{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+{-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
 -- | BigO numbers
 --
@@ -37,15 +37,14 @@ where
 import qualified Data.List as GHC.List
 import qualified Data.List as List
 import qualified Data.Vector as V
-import Perf hiding (Additive, zero, ns)
 import NumHask.Prelude
+import Perf hiding (Additive, ns, zero)
 import qualified Prelude as P
 
 -- $setup
 -- >>> :set -XNoImplicitPrelude
 -- >>> import NumHask.Prelude
 -- >>> import qualified Data.List as List
-
 
 -- data PerfTest = PerformanceExample Expression BigOExpression
 -- data Expression
@@ -164,9 +163,9 @@ stepO :: [Double] -> [Double] -> (Order Double, [Double])
 stepO [] _ = (zero, [])
 stepO cs' ns' =
   bool
-  (lasto, diff)
-  (order N0 (maximum cs'), [])
-  (List.last cs' < zero)
+    (lasto, diff)
+    (order N0 (maximum cs'), [])
+    (List.last cs' < zero)
   where
     diff = diffs List.!! fromEnum o
     diffs =
@@ -175,7 +174,7 @@ stepO cs' ns' =
             ( \n c ->
                 c
                   - promote
-                    ((demote o (List.last ns') (List.last cs'))
+                    ( demote o (List.last ns') (List.last cs')
                     )
                     n
             )
@@ -186,20 +185,20 @@ stepO cs' ns' =
     o =
       toEnum $
         V.minIndex $
-          V.fromList $
-            (fmap sum $ fmap (fmap abs) $ diffs)
+          V.fromList
+            (fmap sum $ fmap (fmap abs) diffs)
     lasto = demote o (List.last ns') (List.last cs')
 
 stepOs_ :: Int -> [Double] -> [Double] -> (Order Double, [Double])
 stepOs_ n cs ns = go n zero cs ns
   where
-    go _ o [] _ = (o,cs)
+    go _ o [] _ = (o, cs)
     go n o cs ns =
       bool
         ( bool
             ( let (o', res) = stepO cs ns
                in case res of
-                    [] -> (o+o', [])
+                    [] -> (o + o', [])
                     r -> go (n - 1) (o' + o) (List.init r) (List.init ns)
             )
             (o, cs)
@@ -212,10 +211,10 @@ stepOs :: [Double] -> [Double] -> Order Double
 stepOs cs ns = fst $ stepOs_ (length ns) cs ns
 
 stepOsB :: [Double] -> [Double] -> (O, Double, Double)
-stepOsB cs ns = (o,f,r)
+stepOsB cs ns = (o, f, r)
   where
     o' = stepOs cs ns
-    (o,f) = bigO o'
+    (o, f) = bigO o'
     r = promote (o' - order o f) (List.last (List.init ns))
 
 -- |
@@ -226,17 +225,16 @@ bigOTest n = do
   _ <- warmup 1000
   cs <- sequence $ (\n -> fst <$> tick (\x -> List.nub [0 .. (x - 1)]) n) <$> ns
   pure (stepOsB (P.fromIntegral <$> cs) ns)
-    where
-      ns = reverse $ List.unfoldr (\n -> let n' = (fromIntegral (floor (n/10) :: Integer) :: Double) in bool (Just (n',n')) Nothing (n'==0)) n
+  where
+    ns = reverse $ List.unfoldr (\n -> let n' = (fromIntegral (floor (n / 10) :: Integer) :: Double) in bool (Just (n', n')) Nothing (n' == 0)) n
 
 -- |
 -- > bigOT (\x -> List.nub [0 .. (x - 1)]) 10000
 -- (N2,13.503969999999999,28089.766030000013)
---
 bigOT :: (Double -> a) -> Double -> IO (O, Double, Double)
 bigOT f n = do
   _ <- warmup 1000
   cs <- sequence $ (\n -> fst <$> tick f n) <$> ns
   pure (stepOsB (P.fromIntegral <$> cs) ns)
-    where
-      ns = reverse $ List.unfoldr (\n -> let n' = (fromIntegral (floor (n/10) :: Integer) :: Double) in bool (Just (n',n')) Nothing (n'==0)) n
+  where
+    ns = reverse $ List.unfoldr (\n -> let n' = (fromIntegral (floor (n / 10) :: Integer) :: Double) in bool (Just (n', n')) Nothing (n' == 0)) n
