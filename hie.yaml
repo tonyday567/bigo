@@ -1,6 +1,0 @@
-cradle:
-  cabal:
-    - path: "./app/app.hs"
-      component: "bigo:exe:bigo"
-    - path: "./src"
-      component: "bigo:lib:bigo"

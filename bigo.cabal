@@ -25,26 +25,11 @@ library
 
   build-depends:
     , base            >=4.7            && <5
-    , ghc-lib-parser  >=9.0.1.20210324 && <9.2
+    -- , ghc-lib-parser  >=9.0.1.20210324 && <9.2
     , numhask         ^>=0.8.1
-    , perf            ^>=0.8
+    , perf            ^>=0.9
     , vector          ^>=0.12
 
   exposed-modules:    BigO
   other-modules:
   default-language:   Haskell2010
-
-executable bigo
-  main-is:            app.hs
-  hs-source-dirs:     app
-  build-depends:
-    , base            >=4.7            && <5
-    , bigo
-    , ghc             ==8.10.4
-    , ghc-lib-parser  >=9.0.1.20210324 && <9.2
-
-  default-language:   Haskell2010
-  default-extensions:
-  ghc-options:
-    -funbox-strict-fields -fforce-recomp -threaded -rtsopts
-    -with-rtsopts=-N -fwrite-ide-info -hiedir=.hie

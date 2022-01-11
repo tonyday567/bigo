@@ -37,9 +37,11 @@ where
 import qualified Data.List as GHC.List
 import qualified Data.List as List
 import qualified Data.Vector as V
-import NumHask.Prelude
-import Perf hiding (Additive, ns, zero)
-import qualified Prelude as P
+import Perf hiding (ns)
+import Prelude
+import GHC.Generics
+import Data.Bool
+import Data.Maybe
 
 -- $setup
 -- >>> :set -XNoImplicitPrelude
@@ -82,17 +84,17 @@ olist = [N3 .. N0]
 --
 -- >>> fmap ($ 1000) promote_
 -- [1.0e9,1000000.0,31622.776601683792,6907.755278982137,1000.0,31.622776601683793,6.907755278982137,1.0]
-promote_ :: (Ord a, FromRational a, ExpField a) => [a -> a]
+promote_ :: [Double -> Double]
 promote_ =
   [ -- \n -> min maxBound (bool (2**n) zero (n<=zero)),
     (^ 3),
     (^ 2),
     (** 1.5),
-    \n -> bool (bool (n * log n) one (n <= one)) zero (n <= zero),
+    \n -> bool (bool (n * log n) 1 (n <= 1)) 0 (n <= 0),
     id,
     (** 0.5),
-    \n -> bool (bool (log n) one (n <= one)) zero (n <= zero),
-    \n -> bool one zero (n <= zero)
+    \n -> bool (bool (log n) 1 (n <= 1)) 0 (n <= 0),
+    \n -> bool 1 0 (n <= 0)
   ]
 
 -- | a set of factors for each O, which represents a full Order specification.
@@ -102,8 +104,8 @@ newtype Order a = Order {factors :: [a]} deriving (Eq, Ord, Show, Generic, Funct
 --
 -- >>> order N1 10
 -- Order {factors = [0,0,0,0,10,0,0,0]}
-order :: (Additive a) => O -> a -> Order a
-order o a = Order $ replicate n zero <> [a] <> replicate (7 - n) zero
+order :: (Num a) => O -> a -> Order a
+order o a = Order $ replicate n 0 <> [a] <> replicate (7 - n) 0
   where
     n = fromEnum o
 
@@ -112,7 +114,7 @@ order o a = Order $ replicate n zero <> [a] <> replicate (7 - n) zero
 -- FIXME:
 -- >>> promote (order NLogN 1000) 1
 -- 1000.0
-promote :: (Ord a, FromRational a, ExpField a) => Order a -> a -> a
+promote :: Order Double -> Double -> Double
 promote (Order fs) n = sum (zipWith (*) fs (($ n) <$> promote_))
 
 -- | Calculate an Order from a measure, and an N
@@ -121,29 +123,32 @@ promote (Order fs) n = sum (zipWith (*) fs (($ n) <$> promote_))
 -- Order {factors = [0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0]}
 --
 -- > promote (demote N2 n m) n m == m
-demote :: (Ord a, FromRational a, ExpField a) => O -> a -> a -> Order a
+demote :: O -> Double -> Double -> Order Double
 demote o n m = order o (m / (promote_ List.!! fromEnum o) n)
 
 -- | report the biggest O
-bigO :: (Ord a, FromInteger a) => Order a -> (O, a)
+bigO :: (Ord a, Num a) => Order a -> (O, a)
 bigO (Order os) = (toEnum b, os List.!! b)
   where
     b = fromMaybe 7 $ List.findIndex (> 0) os
 
 -- | calculate the runtime, which is defined as the gap between bigO and Orderfor 1 run.
-runtime :: (Ord a, FromRational a, ExpField a, FromInteger a) => Order a -> a
+runtime :: Order Double -> Double
 runtime (Order os) = promote (Order r) 1
   where
-    b = fromMaybe 7 $ List.findIndex (> zero) os
-    r = take b os <> [zero] <> drop (b + 1) os
+    b = fromMaybe 7 $ List.findIndex (> 0) os
+    r = take b os <> [0] <> drop (b + 1) os
 
-instance (Additive a) => Additive (Order a) where
-  zero = Order $ replicate 9 zero
+instance (Num a) => Num (Order a) where
+  -- 0 = Order $ replicate 9 0
   (+) (Order o) (Order o') =
     Order (zipWith (+) o o')
-
-instance (Subtractive a) => Subtractive (Order a) where
   negate (Order o) = Order $ negate <$> o
+  (*) (Order o) (Order o') =
+    Order (zipWith (*) o o')
+  abs = undefined
+  signum = undefined
+  fromInteger x = Order $ replicate 9 (fromInteger x)
 
 -- n' = [1,2,3,4,5,10,20,100,1000,10000]
 -- cs' <- warmup 1000 >> (sequence $ (\n -> fst <$> tick (\x -> List.nub [0 .. (x - 1)]) n) <$> [1,2,3,4,5,10,20,100,1000,10000])
@@ -160,12 +165,12 @@ estimateO f ns = do
 -}
 
 stepO :: [Double] -> [Double] -> (Order Double, [Double])
-stepO [] _ = (zero, [])
+stepO [] _ = (0, [])
 stepO cs' ns' =
   bool
     (lasto, diff)
     (order N0 (maximum cs'), [])
-    (List.last cs' < zero)
+    (List.last cs' < 0)
   where
     diff = diffs List.!! fromEnum o
     diffs =
@@ -186,11 +191,11 @@ stepO cs' ns' =
       toEnum $
         V.minIndex $
           V.fromList
-            (fmap sum $ fmap (fmap abs) diffs)
+            (sum <$> fmap (fmap abs) diffs)
     lasto = demote o (List.last ns') (List.last cs')
 
 stepOs_ :: Int -> [Double] -> [Double] -> (Order Double, [Double])
-stepOs_ n cs ns = go n zero cs ns
+stepOs_ n cs ns = go n 0 cs ns
   where
     go _ o [] _ = (o, cs)
     go n o cs ns =
@@ -204,7 +209,7 @@ stepOs_ n cs ns = go n zero cs ns
             (o, cs)
             (n == 0)
         )
-        (o + bool (order N0 (List.head cs)) zero (length cs == 0), [])
+        (o + bool (order N0 (List.head cs)) 0 (length cs == 0), [])
         (length cs <= 1)
 
 stepOs :: [Double] -> [Double] -> Order Double
@@ -224,7 +229,7 @@ bigOTest :: Double -> IO (O, Double, Double)
 bigOTest n = do
   _ <- warmup 1000
   cs <- sequence $ (\n -> fst <$> tick (\x -> List.nub [0 .. (x - 1)]) n) <$> ns
-  pure (stepOsB (P.fromIntegral <$> cs) ns)
+  pure (stepOsB (fromIntegral <$> cs) ns)
   where
     ns = reverse $ List.unfoldr (\n -> let n' = (fromIntegral (floor (n / 10) :: Integer) :: Double) in bool (Just (n', n')) Nothing (n' == 0)) n
 
@@ -235,6 +240,6 @@ bigOT :: (Double -> a) -> Double -> IO (O, Double, Double)
 bigOT f n = do
   _ <- warmup 1000
   cs <- sequence $ (\n -> fst <$> tick f n) <$> ns
-  pure (stepOsB (P.fromIntegral <$> cs) ns)
+  pure (stepOsB (fromIntegral <$> cs) ns)
   where
-    ns = reverse $ List.unfoldr (\n -> let n' = (fromIntegral (floor (n / 10) :: Integer) :: Double) in bool (Just (n', n')) Nothing (n' == 0)) n
+    ns = reverse $ List.unfoldr (\n -> let n' = (fromIntegral (floor (n / 10) :: Integer)) in bool (Just (n', n')) Nothing (n' == 0)) n
